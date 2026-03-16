@@ -1,0 +1,1079 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Revisor de Expedientes</title>
+<script src="https://unpkg.com/react@18/umd/react.development.js"></script>
+<script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
+<script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+<script src="https://cdn.sheetjs.com/xlsx-0.20.1/package/dist/xlsx.full.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/mammoth@1.6.0/mammoth.browser.min.js"></script>
+<link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet"/>
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{--navy:#0f2040;--navy2:#1a3560;--gold:#c9963a;--gold2:#e8b455;--cream:#f5f0e8;--white:#ffffff;--gray1:#f0ede8;--gray2:#d8d3cb;--gray3:#9e9890;--text:#1a1814;--danger:#c0392b;--success:#1e7e4a;--warning:#c9963a}
+body{font-family:'DM Sans',sans-serif;background:var(--cream);color:var(--text);min-height:100vh}
+.login-wrap{min-height:100vh;display:flex;align-items:center;justify-content:center;background:var(--navy)}
+.login-card{background:var(--white);border-radius:16px;padding:48px 40px;width:100%;max-width:420px;box-shadow:0 24px 64px rgba(0,0,0,.3)}
+.login-logo{text-align:center;margin-bottom:32px}
+.login-logo-icon{width:56px;height:56px;background:var(--navy);border-radius:14px;display:inline-flex;align-items:center;justify-content:center;margin-bottom:16px}
+.login-title{font-family:'DM Serif Display',serif;font-size:22px;color:var(--navy)}
+.login-subtitle{font-size:13px;color:var(--gray3);margin-top:4px}
+.field{margin-bottom:18px}
+.field label{display:block;font-size:12px;font-weight:600;color:var(--navy);letter-spacing:.06em;text-transform:uppercase;margin-bottom:6px}
+.field input,.field select{width:100%;padding:11px 14px;border:1.5px solid var(--gray2);border-radius:8px;font-family:'DM Sans',sans-serif;font-size:14px;color:var(--text);background:var(--white);outline:none;transition:border-color .2s}
+.field input:focus{border-color:var(--navy)}
+.field-hint{font-size:11px;color:var(--gray3);margin-top:4px}
+.btn-primary{width:100%;padding:13px;background:var(--navy);color:var(--white);border:none;border-radius:8px;font-family:'DM Sans',sans-serif;font-size:14px;font-weight:600;cursor:pointer;margin-top:8px}
+.btn-primary:disabled{opacity:.6;cursor:not-allowed}
+.btn-gold{padding:10px 24px;background:var(--gold);border:none;border-radius:8px;font-family:'DM Sans',sans-serif;font-size:13px;font-weight:600;color:var(--white);cursor:pointer;display:inline-flex;align-items:center;gap:8px}
+.btn-gold:disabled{opacity:.5;cursor:not-allowed}
+.btn-secondary{padding:10px 20px;background:var(--white);border:1.5px solid var(--gray2);border-radius:8px;font-family:'DM Sans',sans-serif;font-size:13px;font-weight:600;color:var(--navy);cursor:pointer;display:inline-flex;align-items:center;gap:8px}
+.btn-sm{padding:6px 12px;background:var(--navy);color:var(--white);border:none;border-radius:6px;font-family:'DM Sans',sans-serif;font-size:12px;font-weight:600;cursor:pointer;display:inline-flex;align-items:center;gap:6px;flex-shrink:0}
+.btn-sm:disabled{opacity:.5;cursor:not-allowed}
+.btn-sm.gold{background:var(--gold)}
+.btn-sm.gray{background:var(--gray3)}
+.error-msg{background:#fdecea;border:1px solid #f5c6c2;color:var(--danger);border-radius:8px;padding:10px 14px;font-size:13px;margin-top:14px}
+.app-layout{display:flex;min-height:100vh}
+.sidebar{width:240px;background:var(--navy);flex-shrink:0;display:flex;flex-direction:column}
+.sidebar-header{padding:24px 20px;border-bottom:1px solid rgba(255,255,255,.08)}
+.sidebar-logo{display:flex;align-items:center;gap:10px}
+.sidebar-logo-box{width:36px;height:36px;background:var(--gold);border-radius:8px;display:flex;align-items:center;justify-content:center;flex-shrink:0}
+.sidebar-brand{font-family:'DM Serif Display',serif;font-size:14px;color:var(--white);line-height:1.2}
+.sidebar-brand span{display:block;font-family:'DM Sans',sans-serif;font-size:10px;color:rgba(255,255,255,.4);font-weight:400;letter-spacing:.08em;text-transform:uppercase;margin-top:1px}
+.sidebar-nav{flex:1;padding:16px 12px}
+.nav-label{font-size:10px;font-weight:600;letter-spacing:.1em;text-transform:uppercase;color:rgba(255,255,255,.3);padding:0 8px;margin-bottom:6px;margin-top:16px}
+.nav-item{display:flex;align-items:center;gap:10px;padding:9px 10px;border-radius:8px;cursor:pointer;font-size:13px;font-weight:500;color:rgba(255,255,255,.55);margin-bottom:2px}
+.nav-item:hover{background:rgba(255,255,255,.07);color:var(--white)}
+.nav-item.active{background:rgba(201,150,58,.18);color:var(--gold2)}
+.sidebar-footer{padding:16px 12px;border-top:1px solid rgba(255,255,255,.08)}
+.user-info{display:flex;align-items:center;gap:10px;padding:8px 10px}
+.user-avatar{width:30px;height:30px;background:var(--gold);border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;color:var(--navy);flex-shrink:0}
+.user-email{font-size:11px;color:rgba(255,255,255,.45);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;flex:1}
+.btn-logout{background:none;border:none;cursor:pointer;color:rgba(255,255,255,.35);padding:4px;display:flex;align-items:center}
+.main-content{flex:1;overflow-y:auto;background:var(--cream)}
+.page-header{background:var(--white);border-bottom:1px solid var(--gray2);padding:20px 32px;display:flex;align-items:center;justify-content:space-between}
+.page-title{font-family:'DM Serif Display',serif;font-size:22px;color:var(--navy)}
+.page-subtitle{font-size:13px;color:var(--gray3);margin-top:2px}
+.page-body{padding:28px 32px}
+.card{background:var(--white);border-radius:12px;border:1px solid var(--gray2);padding:24px;margin-bottom:20px}
+.card-title{font-size:13px;font-weight:600;color:var(--navy);letter-spacing:.06em;text-transform:uppercase;margin-bottom:18px;display:flex;align-items:center;gap:8px}
+.card-dot{width:6px;height:6px;background:var(--gold);border-radius:50%}
+.stepper{display:flex;align-items:center;gap:0;margin-bottom:28px}
+.step{display:flex;align-items:center;gap:10px;flex:1}
+.step-circle{width:32px;height:32px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:700;flex-shrink:0}
+.step-circle.done{background:var(--success);color:var(--white)}
+.step-circle.active{background:var(--navy);color:var(--white)}
+.step-circle.pending{background:var(--gray2);color:var(--gray3)}
+.step-label{font-size:12px;font-weight:600}
+.step-label.active{color:var(--navy)}
+.step-label.pending{color:var(--gray3)}
+.step-label.done{color:var(--success)}
+.step-line{flex:1;height:2px;background:var(--gray2);margin:0 8px}
+.step-line.done{background:var(--success)}
+.form-grid{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+.form-grid .field{margin-bottom:0}
+.upload-mini{border:1.5px dashed var(--gray2);border-radius:10px;padding:14px;display:flex;align-items:center;gap:12px;margin-bottom:10px;background:var(--gray1)}
+.upload-mini-icon{width:36px;height:36px;border-radius:8px;display:flex;align-items:center;justify-content:center;flex-shrink:0}
+.upload-mini-icon.excel{background:#e8f5e9;color:#1e7e4a}
+.upload-mini-icon.word{background:#e3f2fd;color:#1565c0}
+.upload-mini-icon.general{background:#f3e5f5;color:#6a1b9a}
+.upload-mini-body{flex:1;min-width:0}
+.upload-mini-title{font-size:13px;font-weight:600;color:var(--navy)}
+.upload-mini-sub{font-size:11px;color:var(--gray3);margin-top:2px}
+.upload-mini-file{font-size:12px;color:var(--success);font-weight:500;margin-top:3px}
+.badge-req{font-size:10px;font-weight:700;padding:2px 8px;border-radius:20px;background:#fdecea;color:var(--danger);flex-shrink:0}
+.badge-opt{font-size:10px;font-weight:700;padding:2px 8px;border-radius:20px;background:#f0ede8;color:var(--gray3);flex-shrink:0}
+.upload-zone{border:2px dashed var(--gray2);border-radius:12px;padding:32px 24px;text-align:center;cursor:pointer;background:var(--gray1)}
+.file-list{margin-top:14px;display:flex;flex-direction:column;gap:8px}
+.file-item{display:flex;align-items:center;gap:12px;padding:10px 14px;background:var(--gray1);border-radius:8px;border:1px solid var(--gray2)}
+.file-badge{width:32px;height:32px;border-radius:6px;display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:10px;font-weight:700;background:#fdecea;color:var(--danger)}
+.file-name{flex:1;font-size:13px;font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.file-size{font-size:11px;color:var(--gray3);flex-shrink:0}
+.fstatus{font-size:11px;font-weight:600;padding:3px 8px;border-radius:20px;flex-shrink:0}
+.fstatus.pending{background:#fef3dc;color:#9a6c00}
+.fstatus.uploading{background:#dbeafe;color:#1e40af}
+.fstatus.done{background:#dcfce7;color:var(--success)}
+.fstatus.error{background:#fdecea;color:var(--danger)}
+.actions-row{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-top:20px;padding-top:20px;border-top:1px solid var(--gray2)}
+.stats-row{display:grid;grid-template-columns:repeat(3,1fr);gap:16px;margin-bottom:20px}
+.stat-card{background:var(--white);border:1px solid var(--gray2);border-radius:12px;padding:18px}
+.stat-label{font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.08em;color:var(--gray3);margin-bottom:4px}
+.stat-value{font-family:'DM Serif Display',serif;font-size:26px;color:var(--navy)}
+.divider{height:1px;background:var(--gray2);margin:16px 0}
+.proceso-row{display:flex;align-items:center;gap:16px;padding:14px 16px;border-radius:10px;border:1px solid var(--gray2);margin-bottom:10px;background:var(--white);cursor:pointer}
+.proceso-row:hover{border-color:var(--navy)}
+.proceso-info{flex:1}
+.proceso-name{font-size:14px;font-weight:600;color:var(--navy)}
+.proceso-meta{font-size:11px;color:var(--gray3);margin-top:3px}
+.exp-row{display:flex;align-items:center;gap:10px;padding:10px 14px;border-radius:10px;border:1px solid var(--gray2);background:var(--white)}
+.exp-name{flex:1;font-size:13px;font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.ref-chip{display:inline-flex;align-items:center;gap:5px;padding:3px 9px;border-radius:20px;font-size:11px;font-weight:600;margin-right:5px;margin-bottom:5px}
+.ref-chip.excel{background:#e8f5e9;color:#1e7e4a}
+.ref-chip.word{background:#e3f2fd;color:#1565c0}
+.ref-chip.asign{background:#f3e5f5;color:#6a1b9a}
+.ref-chip.pdf{background:#fdecea;color:var(--danger)}
+.progress-bar{height:5px;background:var(--gray2);border-radius:4px;overflow:hidden;margin-top:6px}
+.progress-fill{height:100%;background:var(--gold);border-radius:4px;transition:width .3s}
+.reporte-wrap{margin-top:12px;border:1px solid var(--gray2);border-radius:10px;overflow:hidden}
+.reporte-head{display:flex;align-items:center;gap:10px;padding:14px 16px}
+.reporte-head.ok{background:#dcfce7}
+.reporte-head.obs{background:#fef3dc}
+.reporte-body{padding:16px;background:var(--white)}
+.rh-title{font-size:14px;font-weight:700}
+.rh-title.ok{color:var(--success)}
+.rh-title.obs{color:#92400e}
+.rh-sub{font-size:12px;opacity:.8;margin-top:2px}
+.perfil-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:14px}
+.perfil-item{padding:10px;border-radius:8px;text-align:center;border:1px solid var(--gray2)}
+.perfil-item.si{background:#dcfce7;border-color:#86efac}
+.perfil-item.no{background:#fdecea;border-color:#fca5a5}
+.perfil-lbl{font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:.06em;margin-bottom:4px;opacity:.7}
+.perfil-val{font-size:12px;font-weight:700}
+.perfil-det{font-size:10px;margin-top:3px;opacity:.8}
+.sec-title{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:var(--navy);margin-bottom:8px;padding-bottom:4px;border-bottom:1px solid var(--gray2)}
+.obs-item{display:flex;gap:8px;align-items:flex-start;padding:5px 10px;border-radius:6px;margin-bottom:3px;font-size:12px;line-height:1.5}
+.obs-item.error{background:#fdecea;color:#7f1d1d}
+.obs-item.warning{background:#fef3dc;color:#78350f}
+.obs-item.ok{background:#dcfce7;color:#14532d}
+.obs-dot{width:6px;height:6px;border-radius:50%;flex-shrink:0;margin-top:5px}
+.obs-dot.error{background:var(--danger)}
+.obs-dot.warning{background:var(--warning)}
+.obs-dot.ok{background:var(--success)}
+.info-bar{background:var(--navy);color:var(--white);border-radius:8px;padding:12px 16px;font-size:13px;display:flex;align-items:center;gap:10px;margin-bottom:14px}
+.info-bar.ok{background:var(--success)}
+.toast{position:fixed;bottom:24px;right:24px;background:var(--navy);color:var(--white);padding:12px 20px;border-radius:10px;font-size:13px;font-weight:500;box-shadow:0 8px 24px rgba(0,0,0,.2);z-index:1000;display:flex;align-items:center;gap:8px;animation:slideUp .3s ease}
+.toast.success{background:var(--success)}
+.toast.error{background:var(--danger)}
+.add-ref-panel{margin-top:10px;padding:12px;background:var(--gray1);border-radius:8px;border:1px solid var(--gray2)}
+@keyframes slideUp{from{opacity:0;transform:translateY(16px)}to{opacity:1;transform:translateY(0)}}
+@keyframes spin{from{transform:rotate(0deg)}to{transform:rotate(360deg)}}
+.spin{animation:spin 1s linear infinite}
+.empty{text-align:center;padding:40px 20px;color:var(--gray3);font-size:13px}
+</style>
+</head>
+<body>
+<div id="root"></div>
+<script type="text/babel">
+const { useState, useEffect, useRef } = React;
+
+// Global error handler - prevents blank screen on unhandled errors
+window.addEventListener('error', function(e) {
+  console.error('Global error:', e.error);
+});
+window.addEventListener('unhandledrejection', function(e) {
+  console.error('Unhandled promise rejection:', e.reason);
+  e.preventDefault(); // Prevent blank screen
+});
+const SB_URL = 'https://pemjeszznysuoquzwvpj.supabase.co';
+const SB_KEY = 'sb_publishable_ioce_gG_IzgUF5jBH82a6g_Ho2-3dRs';
+const sb = supabase.createClient(SB_URL, SB_KEY);
+const SHEETS_URL = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vT5oneyorXbHcQy2Ap0j8xPVFY3Xc1hupeqKtp--ghvkkjqVb4CY50sMPCSSSS9_46DcIyjupCn86Ff/pub?output=csv';
+pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+function getKey(){ return localStorage.getItem('revisorKey') || ''; }
+
+// PDF reading
+async function imgToB64(page) {
+  const vp = page.getViewport({scale:1.5});
+  const c = document.createElement('canvas');
+  c.width=vp.width; c.height=vp.height;
+  await page.render({canvasContext:c.getContext('2d'),viewport:vp}).promise;
+  return c.toDataURL('image/jpeg',0.8).split(',')[1];
+}
+async function visionPage(b64) {
+  const r = await fetch('https://api.anthropic.com/v1/messages',{
+    method:'POST',
+    headers:{'Content-Type':'application/json','x-api-key':getKey(),'anthropic-version':'2023-06-01','anthropic-dangerous-direct-browser-access':'true'},
+    body:JSON.stringify({model:'claude-sonnet-4-20250514',max_tokens:2000,messages:[{role:'user',content:[
+      {type:'image',source:{type:'base64',media_type:'image/jpeg',data:b64}},
+      {type:'text',text:'Transcribe TODO el texto visible en esta imagen: nombres, numeros, fechas, cargos, empresas, sellos. No omitas nada.'}
+    ]}]})
+  });
+  const d = await r.json();
+  return (d.content && d.content[0]) ? d.content[0].text : '[ilegible]';
+}
+async function readPDF(url, onProg) {
+  const pdf = await pdfjsLib.getDocument(url).promise;
+  let txt='', dig=0, img=0;
+  for(let i=1;i<=pdf.numPages;i++){
+    const pg = await pdf.getPage(i);
+    const ct = await pg.getTextContent();
+    const t = ct.items.map(function(x){return x.str;}).join(' ').trim();
+    const hasText = t.replace(/\s/g,'').length > 150;
+    if(onProg) onProg(i,pdf.numPages,hasText?'digital':'imagen');
+    if(hasText){txt+='\n--- Pag '+i+' (digital) ---\n'+t; dig++;}
+    else{
+      try{const b=await imgToB64(pg);const v=await visionPage(b);txt+='\n--- Pag '+i+' (escaneada) ---\n'+v;img++;}
+      catch(e){txt+='\n--- Pag '+i+' (error) ---\n[no se pudo leer]';}
+    }
+  }
+  return {texto:txt,paginas:pdf.numPages,digitales:dig,imagenes:img};
+}
+
+// Read reference files
+async function readExcel(url){
+  const r=await fetch(url);const buf=await r.arrayBuffer();
+  const wb=XLSX.read(buf,{type:'array'});
+  let txt='';
+  wb.SheetNames.forEach(function(n){
+    const rows=XLSX.utils.sheet_to_json(wb.Sheets[n],{header:1,defval:''});
+    txt+='\n=== HOJA: '+n+' ===\n';
+    rows.forEach(function(row){const line=row.filter(function(c){return c!=='';}).join(' | ');if(line.trim())txt+=line+'\n';});
+  });
+  return txt;
+}
+async function readWord(url){
+  const r=await fetch(url);const buf=await r.arrayBuffer();
+  const res=await mammoth.extractRawText({arrayBuffer:buf});
+  return res.value||'';
+}
+async function readRef(path){
+  const {data}=await sb.storage.from('expedientes').createSignedUrl(path,180);
+  if(!data||!data.signedUrl) return '[no acceso]';
+  const url=data.signedUrl;
+  const ext=path.split('.').pop().toLowerCase();
+  if(ext==='pdf'){try{const r=await readPDF(url,null);return r.texto;}catch(e){return '[err pdf:'+e.message+']';}}
+  if(ext==='xlsx'||ext==='xls') return await readExcel(url);
+  if(ext==='docx'||ext==='doc') return await readWord(url);
+  return '[formato no soportado]';
+}
+async function readAllRefs(refs,onProg){
+  const res={};
+  for(let i=0;i<refs.length;i++){
+    const ref=refs[i];
+    if(onProg) onProg(ref.nombre_archivo,i+1,refs.length);
+    try{
+      const txt=await readRef(ref.storage_path);
+      res[ref.tipo]=(res[ref.tipo]||'')+'\n\n=== '+ref.nombre_archivo+' ===\n'+txt;
+      console.log('OK ['+ref.tipo+']: '+txt.length+' chars');
+    }catch(e){
+      res[ref.tipo]=(res[ref.tipo]||'')+'\n[ERROR: '+ref.nombre_archivo+']';
+      console.error('FAIL:',ref.nombre_archivo,e);
+    }
+  }
+  return res;
+}
+
+// Sheets
+async function readSheets(){
+  const r=await fetch(SHEETS_URL);const csv=await r.text();
+  const rows=csv.trim().split('\n').map(function(row){return row.split(',').map(function(c){return c.trim().replace(/^"|"$/g,'');});});
+  const h=rows[0].map(function(x){return x.toLowerCase().trim();});
+  return rows.slice(1).filter(function(r){return r.length>1&&r[0];}).map(function(r){
+    const o={};h.forEach(function(k,i){o[k]=r[i]||'';});
+    return {orden:parseInt(o['orden'])||0,nombre:o['nombre_documento']||'',obligatorio:(o['obligatorio']||'').toUpperCase()==='SI',claves:(o['palabras_clave']||'').split(';').map(function(p){return p.trim().toLowerCase();}).filter(Boolean)};
+  }).sort(function(a,b){return a.orden-b.orden;});
+}
+
+// Claude API call
+async function callClaude(prompt){
+  const r=await fetch('https://api.anthropic.com/v1/messages',{
+    method:'POST',
+    headers:{'Content-Type':'application/json','x-api-key':getKey(),'anthropic-version':'2023-06-01','anthropic-dangerous-direct-browser-access':'true'},
+    body:JSON.stringify({model:'claude-sonnet-4-20250514',max_tokens:4000,messages:[{role:'user',content:prompt}]})
+  });
+  if(!r.ok){const e=await r.json();throw new Error((e.error&&e.error.message)||'Error API');}
+  const d=await r.json();
+  const raw=(d.content&&d.content[0])?d.content[0].text:'';
+  return raw.replace(/\u0060\u0060\u0060json|\u0060\u0060\u0060/g,'').trim();
+}
+
+function sleep(ms){ return new Promise(function(r){setTimeout(r,ms);}); }
+
+function safeParseJSON(text, fallback) {
+  try {
+    // Try direct parse
+    return JSON.parse(text);
+  } catch(e1) {
+    try {
+      // Try finding JSON object in text
+      const m = text.match(/\{[\s\S]+\}/);
+      if (m) return JSON.parse(m[0]);
+    } catch(e2) {}
+    console.warn('JSON parse failed:', text.slice(0,200));
+    return fallback;
+  }
+}
+
+// Multi-call analysis
+async function analyzeDoc(params){
+  const secciones=[];
+  let perfilResult={grado_academico:{cumple:false,detalle:'No evaluado'},experiencia_general:{cumple:false,detalle:'No evaluado'},experiencia_especifica:{cumple:false,detalle:'No evaluado'}};
+
+  // CALL 1: Orden de documentos
+  if(params.onProg) params.onProg('Verificando orden de documentos (1/4)...');
+  try{
+    const p1='Eres revisor experto de expedientes del Estado peruano.'
+      +'\n\nORDEN REQUERIDO:\n'+params.orden
+      +'\n\nFECHA PRESENTACION: '+params.fechaPres
+      +'\n\nTEXTO EXPEDIENTE (primeras paginas):\n'+params.texto.slice(0,15000)
+      +'\n\nTAREA: Lista los documentos que encuentras en el expediente en su orden. Compara con el orden requerido. Reporta documentos faltantes, fuera de orden, o adicionales.'
+      +'\n\nResponde SOLO en JSON: {"items":[{"tipo":"ok","texto":"..."}]}';
+    const r1=await callClaude(p1);
+    const j1=safeParseJSON(r1,{items:[{tipo:"warning",texto:"No se pudo procesar la respuesta del analisis de orden"}]});
+    secciones.push({titulo:'Orden de Documentos',estado:j1.items.some(function(x){return x.tipo==='error';})?'error':j1.items.some(function(x){return x.tipo==='warning';})?'observacion':'ok',items:j1.items});
+  }catch(e){secciones.push({titulo:'Orden de Documentos',estado:'observacion',items:[{tipo:'warning',texto:'No se pudo verificar: '+e.message}]});}
+
+  await sleep(12000);
+  // CALL 2: Hoja de vida vs constancias
+  if(params.onProg) params.onProg('Analizando hoja de vida y constancias (2/4)...');
+  try{
+    const p2='Eres revisor experto de expedientes del Estado peruano. Se MUY PRECISO.'
+      +'\n\nFECHA PRESENTACION: '+params.fechaPres
+      +'\nFECHA INICIO LABORAL: '+params.fechaInicio
+      +'\n\nTEXTO DEL EXPEDIENTE:\n'+params.texto.slice(0,80000)
+      +'\n\nTAREA:'
+      +'\n1. Extrae TODAS las experiencias laborales de la hoja de vida (empresa, cargo, fecha inicio, fecha fin, tiempo declarado).'
+      +'\n2. Para CADA experiencia busca su constancia y compara:'
+      +'\n   - EMPRESA: si difiere entre hoja de vida y constancia -> ERROR citando ambos textos exactos'
+      +'\n   - FECHAS inicio y fin: si difieren -> ERROR citando ambas fechas'
+      +'\n   - FIRMA: si falta en la constancia -> ERROR'
+      +'\n   - Si no hay constancia -> ERROR'
+      +'\n   NOTA: Para MINEDU/INEI el cargo no es igual al objeto del contrato. No compares eso.'
+      +'\n3. Verifica que las constancias esten en el mismo orden que la hoja de vida.'
+      +'\n4. Calcula el tiempo en cada cargo y compara con lo declarado.'
+      +'\n5. Verifica la experiencia acumulada total.'
+      +'\n6. Verifica datos personales: correo debe ser @gmail.com.'
+      +'\n7. Verifica palabras mal escritas en la hoja de vida.'
+      +'\n\nResponde SOLO en JSON: {"items":[{"tipo":"ok","texto":"descripcion. Si hay discrepancia: Hoja de vida dice [X] pero constancia dice [Y]"}]}';
+    const r2=await callClaude(p2);
+    const j2=safeParseJSON(r2,{items:[{tipo:"warning",texto:"No se pudo procesar la respuesta del analisis de hoja de vida"}]});
+    secciones.push({titulo:'Hoja de Vida y Constancias',estado:j2.items.some(function(x){return x.tipo==='error';})?'error':j2.items.some(function(x){return x.tipo==='warning';})?'observacion':'ok',items:j2.items});
+  }catch(e){secciones.push({titulo:'Hoja de Vida y Constancias',estado:'observacion',items:[{tipo:'warning',texto:'Error: '+e.message}]});}
+
+  await sleep(12000);
+  // CALL 3: Propuesta economica y formatos
+  if(params.onProg) params.onProg('Verificando propuesta economica y formatos (3/4)...');
+  try{
+    const p3='Eres revisor experto de expedientes del Estado peruano.'
+      +'\n\nFECHA PRESENTACION: '+params.fechaPres
+      +'\nFECHA INICIO LABORAL: '+params.fechaInicio
+      +'\n\nEXCEL ASIGNACION:\n'+params.asignacion.slice(0,3000)
+      +'\n\nFORMATOS WORD REFERENCIA:\n'+params.fmtWord.slice(0,1000)
+      +'\n\nFORMATOS EXCEL REFERENCIA:\n'+params.fmtExcel.slice(0,1000)
+      +'\n\nTEXTO EXPEDIENTE:\n'+params.texto.slice(0,60000)
+      +'\n\nTAREA:'
+      +'\n1. PROPUESTA ECONOMICA: busca el proveedor en el Excel de asignacion. Verifica denominacion del servicio, sede y monto. Reporta diferencias citando ambos valores.'
+      +'\n2. FECHAS EN FORMATOS: todos los formatos (excepto DJ Politica SST y DJ Conflicto de Intereses) deben tener '+params.fechaPres+'. DJ Politica SST y DJ Conflicto deben tener '+params.fechaInicio+'.'
+      +'\n3. CCI: marcado X en UE 026, exactamente 20 digitos, banco valido (no Banco de la Nacion, no Cajas Municipales, no Banco Falabella).'
+      +'\n4. FORMATOS ACTUALIZADOS: compara con formatos de referencia. Si uso formatos desactualizados -> ERROR.'
+      +'\n5. DJ y ANEXOS: datos personales completos, firma nitida.'
+      +'\n\nResponde SOLO en JSON: {"items":[{"tipo":"ok","texto":"descripcion"}]}';
+    const r3=await callClaude(p3);
+    const j3=safeParseJSON(r3,{items:[{tipo:"warning",texto:"No se pudo procesar la respuesta del analisis de formatos"}]});
+    secciones.push({titulo:'Propuesta Economica y Formatos',estado:j3.items.some(function(x){return x.tipo==='error';})?'error':j3.items.some(function(x){return x.tipo==='warning';})?'observacion':'ok',items:j3.items});
+  }catch(e){secciones.push({titulo:'Propuesta Economica y Formatos',estado:'observacion',items:[{tipo:'warning',texto:'Error: '+e.message}]});}
+
+  await sleep(12000);
+  // CALL 4: DNI, RNP, RUC y Perfil
+  if(params.onProg) params.onProg('Verificando DNI, RNP, RUC y perfil (4/4)...');
+  try{
+    const p4='Eres revisor experto de expedientes del Estado peruano.'
+      +'\n\nFECHA PRESENTACION: '+params.fechaPres
+      +'\n\nPERFIL DEL PUESTO:\n'+params.perfil.slice(0,2000)
+      +'\n\nTEXTO EXPEDIENTE:\n'+params.texto.slice(0,80000)
+      +'\n\nTAREA:'
+      +'\n1. DNI FISICO: busca la foto del DNI en el expediente.'
+      +'\n   - Es legible? Foto y nombres visibles?'
+      +'\n   - FECHA DE CADUCIDAD: si vencio antes de '+params.fechaPres+' -> ERROR CRITICO con la fecha exacta de caducidad.'
+      +'\n   - El numero del DNI coincide con los formatos?'
+      +'\n2. RNP: vigente como Proveedor de Servicios, impreso con fecha '+params.fechaPres
+      +'\n3. RUC: estado ACTIVO, condicion HABIDO, actividad incluye 8411, impreso con fecha '+params.fechaPres
+      +'\n4. PERFIL DEL PUESTO: usando el documento de perfil, verifica grado academico, experiencia general y especifica.'
+      +'\n\nResponde SOLO en JSON: {"perfil":{"grado_academico":{"cumple":true,"detalle":"..."},"experiencia_general":{"cumple":true,"detalle":"calculado X - requerido Y"},"experiencia_especifica":{"cumple":true,"detalle":"calculado X - requerido Y"}},"items":[{"tipo":"ok","texto":"descripcion"}]}';
+    const r4=await callClaude(p4);
+    const j4=safeParseJSON(r4,{perfil:null,items:[{tipo:"warning",texto:"No se pudo procesar la respuesta del analisis de DNI/perfil"}]});
+    if(j4.perfil) perfilResult=j4.perfil;
+    secciones.push({titulo:'DNI, RNP, RUC y Perfil',estado:j4.items.some(function(x){return x.tipo==='error';})?'error':j4.items.some(function(x){return x.tipo==='warning';})?'observacion':'ok',items:j4.items||[]});
+  }catch(e){secciones.push({titulo:'DNI, RNP, RUC y Perfil',estado:'observacion',items:[{tipo:'warning',texto:'Error: '+e.message}]});}
+
+  const tieneError=secciones.some(function(s){return s.estado==='error';});
+  const tieneObs=secciones.some(function(s){return s.estado==='observacion';});
+  const resultado=tieneError||tieneObs?'CON OBSERVACIONES':'CORRECTO';
+  const errCount=secciones.reduce(function(n,s){return n+s.items.filter(function(i){return i.tipo==='error';}).length;},0);
+  const warnCount=secciones.reduce(function(n,s){return n+s.items.filter(function(i){return i.tipo==='warning';}).length;},0);
+  const resumen=resultado==='CORRECTO'?'Sin observaciones':errCount+' error(es) y '+warnCount+' advertencia(s)';
+  return {resultado_final:resultado,resumen:resumen,perfil:perfilResult,secciones:secciones};
+}
+
+// Excel report
+function buildExcel(proceso,exps,reportes){
+  const wb=XLSX.utils.book_new();
+  const sum=[['REPORTE DE REVISION'],[''],['Proceso:',proceso.nombre],['Fecha:',proceso.fecha_presentacion],[''],
+    ['N','EXPEDIENTE','RESULTADO','GRADO','EXP.GENERAL','EXP.ESPECIFICA','RESUMEN']];
+  exps.forEach(function(e,i){
+    const r=reportes[e.id];
+    if(r) sum.push([i+1,e.nombre_archivo.replace('.pdf',''),r.resultado_final,r.perfil&&r.perfil.grado_academico?r.perfil.grado_academico.cumple?'CUMPLE':'NO CUMPLE':'',r.perfil&&r.perfil.experiencia_general?r.perfil.experiencia_general.cumple?'CUMPLE':'NO CUMPLE':'',r.perfil&&r.perfil.experiencia_especifica?r.perfil.experiencia_especifica.cumple?'CUMPLE':'NO CUMPLE':'',r.resumen||'']);
+    else sum.push([i+1,e.nombre_archivo.replace('.pdf',''),'SIN ANALIZAR','','','','']);
+  });
+  const ws1=XLSX.utils.aoa_to_sheet(sum);
+  ws1['!cols']=[{wch:5},{wch:35},{wch:18},{wch:16},{wch:14},{wch:16},{wch:60}];
+  XLSX.utils.book_append_sheet(wb,ws1,'Resumen');
+  const obs=[['N','EXPEDIENTE','SECCION','TIPO','OBSERVACION']];
+  exps.forEach(function(e,i){
+    const r=reportes[e.id];
+    if(!r||!Array.isArray(r.secciones)) return;
+    r.secciones.forEach(function(s){
+      if(!Array.isArray(s.items)) return;
+      s.items.forEach(function(it){if(it.tipo!=='ok') obs.push([i+1,e.nombre_archivo.replace('.pdf',''),s.titulo,it.tipo==='error'?'ERROR':'ADVERTENCIA',it.texto]);});
+    });
+  });
+  const ws2=XLSX.utils.aoa_to_sheet(obs);
+  ws2['!cols']=[{wch:5},{wch:35},{wch:25},{wch:14},{wch:80}];
+  XLSX.utils.book_append_sheet(wb,ws2,'Observaciones');
+  const fecha=new Date().toISOString().slice(0,10);
+  XLSX.writeFile(wb,'Reporte_'+proceso.nombre.replace(/\s+/g,'_')+'_'+fecha+'.xlsx');
+}
+
+// Icons
+const Ic = function({n,s}){
+  s=s||16;
+  const icons={
+    logo:<svg width={s} height={s} fill="none" stroke="currentColor" strokeWidth="1.8" viewBox="0 0 24 24"><path d="M9 12l2 2 4-4"/><path d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>,
+    plus:<svg width={s} height={s} fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>,
+    list:<svg width={s} height={s} fill="none" stroke="currentColor" strokeWidth="1.8" viewBox="0 0 24 24"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><circle cx="3" cy="6" r="1" fill="currentColor"/><circle cx="3" cy="12" r="1" fill="currentColor"/><circle cx="3" cy="18" r="1" fill="currentColor"/></svg>,
+    logout:<svg width={s} height={s} fill="none" stroke="currentColor" strokeWidth="1.8" viewBox="0 0 24 24"><path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4M16 17l5-5-5-5M21 12H9"/></svg>,
+    upload:<svg width={s} height={s} fill="none" stroke="currentColor" strokeWidth="1.8" viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4M17 8l-5-5-5 5M12 3v12"/></svg>,
+    check:<svg width={s} height={s} fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg>,
+    x:<svg width={s} height={s} fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>,
+    back:<svg width={s} height={s} fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><line x1="19" y1="12" x2="5" y2="12"/><polyline points="12 19 5 12 12 5"/></svg>,
+    arrow:<svg width={s} height={s} fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg>,
+    folder:<svg width={s} height={s} fill="none" stroke="currentColor" strokeWidth="1.8" viewBox="0 0 24 24"><path d="M3 7a2 2 0 012-2h4l2 2h8a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V7z"/></svg>,
+    search:<svg width={s} height={s} fill="none" stroke="currentColor" strokeWidth="1.8" viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>,
+    spin:<svg width={s} height={s} fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24" className="spin"><path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83"/></svg>,
+    excel:<svg width={s} height={s} fill="none" stroke="currentColor" strokeWidth="1.8" viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18M3 15h18M9 3v18"/></svg>,
+    word:<svg width={s} height={s} fill="none" stroke="currentColor" strokeWidth="1.8" viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="8" y1="13" x2="16" y2="13"/><line x1="8" y1="17" x2="16" y2="17"/></svg>,
+    file:<svg width={s} height={s} fill="none" stroke="currentColor" strokeWidth="1.8" viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>,
+    person:<svg width={s} height={s} fill="none" stroke="currentColor" strokeWidth="1.8" viewBox="0 0 24 24"><path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>,
+    key:<svg width={s} height={s} fill="none" stroke="currentColor" strokeWidth="1.8" viewBox="0 0 24 24"><circle cx="7" cy="17" r="3"/><path d="M10 17h8M14 17v-3M21 10a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>,
+    download:<svg width={s} height={s} fill="none" stroke="currentColor" strokeWidth="1.8" viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4M7 10l5 5 5-5M12 15V3"/></svg>,
+  };
+  return icons[n]||null;
+};
+
+const Toast = function({msg,type,onClose}){
+  useEffect(function(){const t=setTimeout(onClose,3500);return function(){clearTimeout(t);},[]});
+  return <div className={'toast '+(type||'')}><Ic n={type==='success'?'check':'x'} s={14}/>{msg}</div>;
+};
+
+const ApiKeyScreen = function({onSave}){
+  const [k,setK]=useState(localStorage.getItem('revisorKey')||'');
+  const [vis,setVis]=useState(false);
+  const save=function(){
+    if(!k.trim().startsWith('sk-ant-')){alert('La API Key debe empezar con sk-ant-');return;}
+    localStorage.setItem('revisorKey',k.trim());
+    onSave(k.trim());
+  };
+  return (
+    <div className="login-wrap">
+      <div className="login-card">
+        <div className="login-logo">
+          <div className="login-logo-icon" style={{background:'var(--gold)'}}><Ic n="key" s={28}/></div>
+          <div className="login-title">Revisor de Expedientes</div>
+          <div className="login-subtitle">Ingresa tu API Key para comenzar</div>
+        </div>
+        <div className="field">
+          <label>API Key de Claude</label>
+          <div style={{position:'relative'}}>
+            <input type={vis?'text':'password'} value={k} onChange={function(e){setK(e.target.value);}} placeholder="sk-ant-api03-..." style={{paddingRight:44}} onKeyDown={function(e){if(e.key==='Enter')save();}}/>
+            <button onClick={function(){setVis(!vis);}} style={{position:'absolute',right:10,top:'50%',transform:'translateY(-50%)',background:'none',border:'none',cursor:'pointer',fontSize:16}}>{vis?'X':'O'}</button>
+          </div>
+        </div>
+        <div style={{fontSize:12,color:'var(--gray3)',marginBottom:16,lineHeight:1.6}}>
+          Obten tu clave en <strong>console.anthropic.com</strong> - API Keys.<br/>
+          Se guarda en tu navegador. No necesitas editar el archivo nunca mas.
+        </div>
+        <button className="btn-primary" onClick={save} disabled={!k.trim()}>Guardar y continuar</button>
+      </div>
+    </div>
+  );
+};
+
+const Login = function({onLogin}){
+  const [email,setEmail]=useState('');
+  const [pass,setPass]=useState('');
+  const [loading,setLoading]=useState(false);
+  const [err,setErr]=useState('');
+  const go=async function(){
+    if(!email||!pass){setErr('Completa todos los campos.');return;}
+    setLoading(true);setErr('');
+    const {data,error}=await sb.auth.signInWithPassword({email,password:pass});
+    if(error) setErr('Correo o contrasena incorrectos.');
+    else onLogin(data.user);
+    setLoading(false);
+  };
+  return (
+    <div className="login-wrap">
+      <div className="login-card">
+        <div className="login-logo">
+          <div className="login-logo-icon"><Ic n="logo" s={28}/></div>
+          <div className="login-title">Revisor de Expedientes</div>
+          <div className="login-subtitle">Sistema de revision automatizada</div>
+        </div>
+        <div className="field"><label>Correo</label><input type="email" value={email} onChange={function(e){setEmail(e.target.value);}} placeholder="tu@correo.com" onKeyDown={function(e){if(e.key==='Enter')go();}}/></div>
+        <div className="field"><label>Contrasena</label><input type="password" value={pass} onChange={function(e){setPass(e.target.value);}} placeholder="..." onKeyDown={function(e){if(e.key==='Enter')go();}}/></div>
+        <button className="btn-primary" onClick={go} disabled={loading}>{loading?'Ingresando...':'Ingresar'}</button>
+        {err&&<div className="error-msg">{err}</div>}
+      </div>
+    </div>
+  );
+};
+
+const UpSlot = function({label,hint,iconName,iconCls,req,accept,multi,val,onChange}){
+  const ref=useRef();
+  const names=multi?(val&&val.length>0?val.length+' archivo'+(val.length>1?'s':''):null):(val?val.name:null);
+  return (
+    <div className="upload-mini">
+      <div className={'upload-mini-icon '+iconCls}><Ic n={iconName} s={18}/></div>
+      <div className="upload-mini-body">
+        <div className="upload-mini-title">{label}</div>
+        <div className="upload-mini-sub">{hint}</div>
+        {names&&<div className="upload-mini-file">Seleccionado: {names}</div>}
+      </div>
+      <span className={req?'badge-req':'badge-opt'}>{req?'Obligatorio':'Opcional'}</span>
+      <input type="file" accept={accept} multiple={!!multi} onChange={function(e){onChange(multi?Array.from(e.target.files):e.target.files[0]);}} style={{position:'absolute',inset:0,opacity:0,cursor:'pointer'}}/>
+    </div>
+  );
+};
+
+const Stepper = function({step}){
+  const steps=['Datos','Archivos de referencia','Expedientes'];
+  return (
+    <div className="stepper">
+      {steps.map(function(s,i){
+        const state=i+1<step?'done':i+1===step?'active':'pending';
+        return (
+          <React.Fragment key={i}>
+            <div className="step">
+              <div className={'step-circle '+state}>{state==='done'?<Ic n="check" s={13}/>:i+1}</div>
+              <div className={'step-label '+state}>{s}</div>
+            </div>
+            {i<steps.length-1&&<div className={'step-line '+(i+1<step?'done':'')}/>}
+          </React.Fragment>
+        );
+      })}
+    </div>
+  );
+};
+
+const NuevoProceso = function({user,onToast,onDone}){
+  const [step,setStep]=useState(1);
+  const [saving,setSaving]=useState(false);
+  const [pid,setPid]=useState(null);
+  const [nombre,setNombre]=useState('');
+  const [fechaPres,setFechaPres]=useState('');
+  const [fechaInicio,setFechaInicio]=useState('');
+  const [excels,setExcels]=useState([]);
+  const [word1,setWord1]=useState(null);
+  const [word2,setWord2]=useState(null);
+  const [asignacion,setAsignacion]=useState(null);
+  const [perfil,setPerfil]=useState(null);
+  const [pdfs,setPdfs]=useState([]);
+  const [drag,setDrag]=useState(false);
+  const fileRef=useRef();
+  const fmt=function(b){return b<1024*1024?(b/1024).toFixed(0)+' KB':(b/1024/1024).toFixed(1)+' MB';};
+  const go2=function(){
+    if(!nombre.trim()){onToast('Ingresa el nombre del proceso.','error');return;}
+    if(!fechaPres){onToast('Ingresa la fecha de presentacion.','error');return;}
+    if(!fechaInicio){onToast('Ingresa la fecha de inicio laboral.','error');return;}
+    setStep(2);
+  };
+  const go3=async function(){
+    if(excels.length===0){onToast('Sube al menos un formato Excel.','error');return;}
+    if(!word1){onToast('Sube la DJ Politica SST (Word).','error');return;}
+    if(!asignacion){onToast('Sube el Excel de asignacion.','error');return;}
+    if(!perfil){onToast('Sube el documento de perfil del puesto.','error');return;}
+    setSaving(true);
+    const {data:proc,error:eP}=await sb.from('procesos').insert({nombre:nombre.trim(),fecha_presentacion:fechaPres,fecha_inicio_laboral:fechaInicio,user_id:user.id}).select().single();
+    if(eP){onToast('Error: '+eP.message,'error');setSaving(false);return;}
+    setPid(proc.id);
+    const ups=[];
+    excels.forEach(function(f,i){ups.push({file:f,tipo:'excel_referencia',path:proc.id+'/ref/excel'+i+'_'+f.name});});
+    ups.push({file:word1,tipo:'word_referencia',path:proc.id+'/ref/word1_'+word1.name});
+    if(word2) ups.push({file:word2,tipo:'word_referencia_2',path:proc.id+'/ref/word2_'+word2.name});
+    ups.push({file:asignacion,tipo:'excel_asignacion',path:proc.id+'/ref/asig_'+asignacion.name});
+    ups.push({file:perfil,tipo:'perfil_puesto',path:proc.id+'/ref/perfil_'+perfil.name});
+    for(let i=0;i<ups.length;i++){
+      const u=ups[i];
+      const {error:eU}=await sb.storage.from('expedientes').upload(u.path,u.file,{upsert:true});
+      if(!eU) await sb.from('archivos_referencia').insert({proceso_id:proc.id,tipo:u.tipo,nombre_archivo:u.file.name,storage_path:u.path});
+    }
+    onToast('Referencias guardadas','success');
+    setSaving(false);setStep(3);
+  };
+  const addPdfs=function(files){
+    const ok=Array.from(files).filter(function(f){return f.type==='application/pdf';});
+    if(ok.length!==files.length) onToast('Solo se aceptan PDF.','error');
+    setPdfs(function(prev){
+      const names=new Set(prev.map(function(x){return x.file.name;}));
+      return [...prev,...ok.filter(function(f){return !names.has(f.name);}).map(function(f){return {file:f,status:'pending'};})];
+    });
+  };
+  const subir=async function(){
+    if(pdfs.length===0){onToast('Agrega al menos un PDF.','error');return;}
+    setSaving(true);
+    for(let i=0;i<pdfs.length;i++){
+      const f=pdfs[i];
+      setPdfs(function(prev){return prev.map(function(x,idx){return idx===i?{...x,status:'uploading'}:x;});});
+      const path=pid+'/expedientes/'+f.file.name;
+      const {error:eU}=await sb.storage.from('expedientes').upload(path,f.file,{upsert:true});
+      if(eU){setPdfs(function(prev){return prev.map(function(x,idx){return idx===i?{...x,status:'error'}:x;});});}
+      else{
+        await sb.from('expedientes').insert({proceso_id:pid,nombre_archivo:f.file.name,storage_path:path,estado:'pendiente'});
+        setPdfs(function(prev){return prev.map(function(x,idx){return idx===i?{...x,status:'done'}:x;});});
+      }
+    }
+    onToast('Proceso creado!','success');
+    setSaving(false);
+    setTimeout(function(){onDone();},1200);
+  };
+  const done=pdfs.filter(function(f){return f.status==='done';}).length;
+  const pend=pdfs.filter(function(f){return f.status==='pending';}).length;
+  return (
+    <div>
+      <div className="page-header"><div><div className="page-title">Nuevo Proceso</div><div className="page-subtitle">Configura el proceso en 3 pasos</div></div></div>
+      <div className="page-body">
+        <Stepper step={step}/>
+        {step===1&&(
+          <div className="card">
+            <div className="card-title"><div className="card-dot"/> Datos del Proceso</div>
+            <div className="field"><label>Nombre del proceso</label><input type="text" value={nombre} onChange={function(e){setNombre(e.target.value);}} placeholder="Ej: Contratacion CAS Mayo 2025"/></div>
+            <div className="form-grid">
+              <div className="field"><label>Fecha de presentacion</label><input type="date" value={fechaPres} onChange={function(e){setFechaPres(e.target.value);}}/><div className="field-hint">Fecha que llevan todos los formatos Excel</div></div>
+              <div className="field"><label>Fecha de inicio laboral</label><input type="date" value={fechaInicio} onChange={function(e){setFechaInicio(e.target.value);}}/><div className="field-hint">Fecha que lleva la DJ Politica SST</div></div>
+            </div>
+            <div className="actions-row"><div/><button className="btn-gold" onClick={go2}>Siguiente <Ic n="arrow" s={14}/></button></div>
+          </div>
+        )}
+        {step===2&&(
+          <div className="card">
+            <div className="card-title"><div className="card-dot"/> Archivos de Referencia</div>
+            <p style={{fontSize:13,color:'var(--gray3)',marginBottom:16}}>Claude usara estos archivos para comparar con cada expediente.</p>
+            <div style={{position:'relative'}}><UpSlot label="Formatos Excel de referencia" hint="Los formatos Excel que le entregaste al proveedor (puedes subir varios)" iconName="excel" iconCls="excel" req={true} accept=".xlsx,.xls" multi={true} val={excels} onChange={setExcels}/></div>
+            <div style={{position:'relative'}}><UpSlot label="DJ Politica SST (Word - siempre va)" hint="Lleva fecha de inicio laboral" iconName="word" iconCls="word" req={true} accept=".docx,.doc" val={word1} onChange={setWord1}/></div>
+            <div style={{position:'relative'}}><UpSlot label="DJ Conflicto de Intereses (Word - a veces va)" hint="Solo si aplica a este grupo" iconName="word" iconCls="word" req={false} accept=".docx,.doc" val={word2} onChange={setWord2}/></div>
+            <div style={{position:'relative'}}><UpSlot label="Excel de asignacion" hint="Nombre, servicio, sede y monto de cada proveedor" iconName="excel" iconCls="excel" req={true} accept=".xlsx,.xls" val={asignacion} onChange={setAsignacion}/></div>
+            <div className="divider"/>
+            <div style={{position:'relative'}}><UpSlot label="Perfil del puesto" hint="Grado academico, experiencia general y especifica requeridos" iconName="person" iconCls="general" req={true} accept=".pdf,.docx,.doc" val={perfil} onChange={setPerfil}/></div>
+            <div className="actions-row">
+              <button className="btn-secondary" onClick={function(){setStep(1);}}><Ic n="back" s={14}/> Atras</button>
+              <button className="btn-gold" onClick={go3} disabled={saving}>{saving?<><Ic n="spin" s={14}/> Guardando...</>:<>Siguiente <Ic n="arrow" s={14}/></>}</button>
+            </div>
+          </div>
+        )}
+        {step===3&&(
+          <div>
+            {pdfs.length>0&&<div className="stats-row">
+              <div className="stat-card"><div className="stat-label">Total</div><div className="stat-value">{pdfs.length}</div></div>
+              <div className="stat-card"><div className="stat-label">Subidos</div><div className="stat-value" style={{color:'var(--success)'}}>{done}</div></div>
+              <div className="stat-card"><div className="stat-label">Pendientes</div><div className="stat-value" style={{color:'var(--warning)'}}>{pend}</div></div>
+            </div>}
+            <div className="card">
+              <div className="card-title"><div className="card-dot"/> Expedientes de Proveedores</div>
+              <div className="upload-zone" onDragOver={function(e){e.preventDefault();setDrag(true);}} onDragLeave={function(){setDrag(false);}} onDrop={function(e){e.preventDefault();setDrag(false);addPdfs(e.dataTransfer.files);}} onClick={function(){fileRef.current&&fileRef.current.click();}}>
+                <input ref={fileRef} type="file" accept=".pdf" multiple onChange={function(e){addPdfs(e.target.files);}} style={{display:'none'}}/>
+                <div style={{width:48,height:48,background:'var(--navy)',borderRadius:12,display:'inline-flex',alignItems:'center',justifyContent:'center',marginBottom:12}}><Ic n="upload" s={22}/></div>
+                <div style={{fontSize:15,fontWeight:600,color:'var(--navy)',marginBottom:4}}>Arrastra los PDF o haz clic</div>
+                <div style={{fontSize:12,color:'var(--gray3)'}}>Puedes subir varios a la vez</div>
+              </div>
+              {pdfs.length>0&&<div className="file-list">{pdfs.map(function(f,i){return (
+                <div className="file-item" key={i}>
+                  <div className="file-badge">PDF</div>
+                  <div className="file-name">{f.file.name}</div>
+                  <div className="file-size">{fmt(f.file.size)}</div>
+                  <span className={'fstatus '+f.status}>{f.status==='pending'?'Pendiente':f.status==='uploading'?'Subiendo...':f.status==='done'?'Listo':'Error'}</span>
+                  {f.status==='pending'&&!saving&&<button className="btn-sm" style={{background:'var(--danger)'}} onClick={function(){setPdfs(function(prev){return prev.filter(function(_,idx){return idx!==i;});});}}><Ic n="x" s={12}/></button>}
+                </div>
+              );})}</div>}
+              <div className="actions-row">
+                <button className="btn-secondary" disabled={saving} onClick={function(){setStep(2);}}><Ic n="back" s={14}/> Atras</button>
+                <button className="btn-gold" onClick={subir} disabled={saving||pdfs.length===0}>{saving?<><Ic n="spin" s={14}/> Subiendo...</>:<><Ic n="upload" s={14}/> Subir expedientes</>}</button>
+              </div>
+            </div>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+};
+
+const Reporte = function({r}){
+  const ok=r.resultado_final==='CORRECTO';
+  return (
+    <div className="reporte-wrap">
+      <div className={'reporte-head '+(ok?'ok':'obs')}>
+        <span style={{fontSize:20}}>{ok?'OK':'!'}</span>
+        <div><div className={'rh-title '+(ok?'ok':'obs')}>Expediente {r.resultado_final}</div><div className="rh-sub">{r.resumen}</div></div>
+      </div>
+      <div className="reporte-body">
+        {r.perfil&&<div className="perfil-grid">
+          {[['Grado Academico',r.perfil.grado_academico],['Exp. General',r.perfil.experiencia_general],['Exp. Especifica',r.perfil.experiencia_especifica]].map(function(entry){
+            const label=entry[0],v=entry[1];
+            if(!v) return null;
+            return <div key={label} className={'perfil-item '+(v.cumple?'si':'no')}>
+              <div className="perfil-lbl">{label}</div>
+              <div className="perfil-val">{v.cumple?'Cumple':'No cumple'}</div>
+              {v.detalle&&<div className="perfil-det">{v.detalle}</div>}
+            </div>;
+          })}
+        </div>}
+        {Array.isArray(r.secciones)&&r.secciones.map(function(sec,i){return (
+          <div key={i} style={{marginBottom:12}}>
+            <div className="sec-title">{sec.estado==='error'?'[ERROR]':sec.estado==='observacion'?'[OBS]':'[OK]'} {sec.titulo}</div>
+            {Array.isArray(sec.items)&&sec.items.map(function(it,j){return (
+              <div key={j} className={'obs-item '+(it.tipo==='error'?'error':it.tipo==='warning'?'warning':'ok')}>
+                <div className={'obs-dot '+(it.tipo==='error'?'error':it.tipo==='warning'?'warning':'ok')}/>
+                <span>{it.texto}</span>
+              </div>
+            );})}
+          </div>
+        );})}
+      </div>
+    </div>
+  );
+};
+
+const DetalleProceso = function({proceso,user,onToast,onBack}){
+  const [exps,setExps]=useState([]);
+  const [refs,setRefs]=useState([]);
+  const [loading,setLoading]=useState(true);
+  const [textos,setTextos]=useState({});
+  const [reportes,setReportes]=useState({});
+  const [refData,setRefData]=useState(null);
+  const [leyRefs,setLeyRefs]=useState(false);
+  const [leyExps,setLeyExps]=useState(false);
+  const [analizando,setAnalizando]=useState({});
+  const [analizandoTodo,setAnalizandoTodo]=useState(false);
+  const [msg,setMsg]=useState('');
+  const [preview,setPreview]=useState(null);
+  const [showAddRef,setShowAddRef]=useState(false);
+  const [newRefFile,setNewRefFile]=useState(null);
+  const [newRefTipo,setNewRefTipo]=useState('perfil_puesto');
+
+  useEffect(function(){
+    async function load(){
+      const [{data:e},{data:r}]=await Promise.all([
+        sb.from('expedientes').select('*').eq('proceso_id',proceso.id).order('created_at'),
+        sb.from('archivos_referencia').select('*').eq('proceso_id',proceso.id)
+      ]);
+      const expsArr=Array.isArray(e)?e:[];
+      const rpts={};
+      expsArr.forEach(function(x){if(x.reporte_json){try{rpts[x.id]=JSON.parse(x.reporte_json);}catch(_){}}});
+      setReportes(rpts);
+      const txts={};
+      expsArr.forEach(function(x){if(x.texto_extraido) txts[x.id]={texto:x.texto_extraido,paginas:'?'};});
+      setTextos(txts);
+      setExps(expsArr);
+      const refsArr=Array.isArray(r)?r:[];
+      setRefs(refsArr);
+      setLoading(false);
+      if(refsArr.length>0){
+        setLeyRefs(true);
+        setMsg('Cargando archivos de referencia...');
+        try{
+          const c=await readAllRefs(refsArr,function(nm,i,t){setMsg('Leyendo '+i+'/'+t+': '+nm);});
+          setRefData(c);
+          console.log('Refs OK:',Object.keys(c).join(', '));
+        }catch(err){console.error(err);}
+        setLeyRefs(false);setMsg('');
+      }
+    }
+    load();
+  },[proceso.id]);
+
+  const getUrl=async function(path){const {data}=await sb.storage.from('expedientes').createSignedUrl(path,120);return data&&data.signedUrl;};
+
+  const subirRef=async function(){
+    try{
+      if(!newRefFile){onToast('Selecciona un archivo primero.','error');return;}
+      const path=proceso.id+'/ref/add_'+newRefTipo+'_'+Date.now()+'_'+newRefFile.name;
+      const {error:eU}=await sb.storage.from('expedientes').upload(path,newRefFile,{upsert:true});
+      if(eU){onToast('Error subiendo archivo: '+eU.message,'error');return;}
+      await sb.from('archivos_referencia').insert({proceso_id:proceso.id,tipo:newRefTipo,nombre_archivo:newRefFile.name,storage_path:path});
+      setNewRefFile(null);
+      setShowAddRef(false);
+      const {data:r2}=await sb.from('archivos_referencia').select('*').eq('proceso_id',proceso.id);
+      setRefs(Array.isArray(r2)?r2:[]);
+      setRefData(null);
+      onToast('Subido! Ahora haz clic en Recargar.','success');
+    }catch(err){
+      console.error('subirRef:',err);
+      onToast('Error: '+err.message,'error');
+    }
+  };
+
+  const leerUno=async function(exp){
+    setExps(function(prev){return prev.map(function(x){return x.id===exp.id?{...x,leyendo:true,progMsg:''}:x;});});
+    try{
+      const url=await getUrl(exp.storage_path);
+      const {texto,paginas,imagenes}=await readPDF(url,function(i,t,tipo){
+        setExps(function(prev){return prev.map(function(x){return x.id===exp.id?{...x,progMsg:'Pag '+i+'/'+t+(tipo==='imagen'?' (vision)':'')}:x;});});
+      });
+      setTextos(function(prev){return {...prev,[exp.id]:{texto,paginas,imagenes}};});
+      setExps(function(prev){return prev.map(function(x){return x.id===exp.id?{...x,leyendo:false,leido:true,progMsg:''}:x;});});
+      await sb.from('expedientes').update({texto_extraido:texto,estado:'leido'}).eq('id',exp.id);
+      onToast(exp.nombre_archivo+': '+paginas+' pags ('+imagenes+' escaneadas)','success');
+    }catch(err){
+      setExps(function(prev){return prev.map(function(x){return x.id===exp.id?{...x,leyendo:false,error:true,progMsg:''}:x;});});
+      onToast('Error leyendo: '+err.message,'error');
+    }
+  };
+
+  const leerTodos=async function(){
+    setLeyExps(true);
+    const pend=exps.filter(function(x){return !x.leido&&!textos[x.id];});
+    for(let i=0;i<pend.length;i++) await leerUno(pend[i]);
+    setLeyExps(false);
+  };
+
+  const analizarUno=async function(exp){
+    const txt=textos[exp.id];
+    if(!txt){onToast('Primero lee el expediente.','error');return;}
+    if(!refData){onToast('Espera a que carguen las referencias.','error');return;}
+    setAnalizando(function(prev){return {...prev,[exp.id]:true};});
+    let orden='No disponible';
+    try{
+      const sheets=await readSheets();
+      orden=sheets.map(function(d){return d.orden+'. '+d.nombre+' ('+(d.obligatorio?'OBLIGATORIO':'OPCIONAL')+') - claves: '+d.claves.join(', ');}).join('\n');
+    }catch(e){console.warn('Sheets:',e);}
+    try{
+      const rc=refData;
+      const reporte=await analyzeDoc({
+        archivo:exp.nombre_archivo,
+        fechaPres:proceso.fecha_presentacion,
+        fechaInicio:proceso.fecha_inicio_laboral,
+        orden:orden,
+        asignacion:rc['excel_asignacion']||'No subido',
+        perfil:rc['perfil_puesto']||rc['pdf_perfil']||'No subido',
+        fmtWord:(rc['word_referencia']||'')+(rc['word_referencia_2']?'\n'+rc['word_referencia_2']:''),
+        fmtExcel:rc['excel_referencia']||'No subido',
+        texto:txt.texto,
+        onProg:function(m){setMsg(m);},
+      });
+      setReportes(function(prev){return {...prev,[exp.id]:reporte};});
+      await sb.from('expedientes').update({reporte_json:JSON.stringify(reporte),estado:'analizado'}).eq('id',exp.id);
+      onToast('Analisis completado','success');
+    }catch(err){onToast('Error: '+err.message,'error');}
+    setAnalizando(function(prev){return {...prev,[exp.id]:false};});
+    setMsg('');
+  };
+
+  const analizarTodos=async function(){
+    const pend=exps.filter(function(x){return textos[x.id]&&!reportes[x.id];});
+    if(pend.length===0){onToast('Nada pendiente.','error');return;}
+    setAnalizandoTodo(true);
+    for(let i=0;i<pend.length;i++) await analizarUno(pend[i]);
+    setAnalizandoTodo(false);
+  };
+
+  const tipoLabel={excel_referencia:'Excel ref',word_referencia:'Word SST',word_referencia_2:'Word Conflicto',excel_asignacion:'Asignacion',perfil_puesto:'Perfil',pdf_perfil:'Perfil'};
+  const tipoClass={excel_referencia:'excel',word_referencia:'word',word_referencia_2:'word',excel_asignacion:'asign',perfil_puesto:'pdf',pdf_perfil:'pdf'};
+  const leidos=exps.filter(function(x){return x.leido||textos[x.id];}).length;
+  const pct=exps.length>0?Math.round(leidos/exps.length*100):0;
+  const fmtD=function(d){return d?new Date(d+'T00:00:00').toLocaleDateString('es-PE',{day:'2-digit',month:'short',year:'numeric'}):'---';};
+
+  return (
+    <div>
+      <div className="page-header">
+        <div>
+          <div style={{display:'flex',alignItems:'center',gap:10}}>
+            <button className="btn-sm" onClick={onBack}><Ic n="back" s={13}/> Volver</button>
+            <div className="page-title">{proceso.nombre}</div>
+          </div>
+          <div className="page-subtitle">Presentacion: {fmtD(proceso.fecha_presentacion)} - Inicio: {fmtD(proceso.fecha_inicio_laboral)}</div>
+        </div>
+        {Object.keys(reportes).length>0&&<button className="btn-gold" onClick={function(){buildExcel(proceso,exps,reportes);}}><Ic n="download" s={14}/> Descargar Excel</button>}
+      </div>
+      <div className="page-body">
+        <div className="card" style={{padding:'12px 20px',marginBottom:16}}>
+          <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',gap:12}}>
+            <div style={{display:'flex',alignItems:'center',gap:8,fontSize:13}}>
+              {leyRefs
+                ?<><Ic n="spin" s={15}/><span style={{color:'var(--gray3)'}}>{msg||'Cargando referencias...'}</span></>
+                :refData
+                  ?<><span style={{color:'var(--success)',fontWeight:600}}>OK - Referencias listas para analizar</span></>
+                  :<span style={{color:'var(--warning)'}}>Cargando referencias...</span>
+              }
+            </div>
+            <div style={{display:'flex',gap:6}}>
+              <button className="btn-sm gray" onClick={async function(){
+                setLeyRefs(true);
+                try{const c=await readAllRefs(refs,function(nm,i,t){setMsg('Leyendo '+i+'/'+t+': '+nm);});setRefData(c);onToast('Referencias recargadas','success');}
+                catch(e){onToast('Error: '+e.message,'error');}
+                setLeyRefs(false);setMsg('');
+              }} disabled={leyRefs||refs.length===0}>Recargar</button>
+              <button className="btn-sm" onClick={function(){setShowAddRef(!showAddRef);}}>+ Agregar</button>
+            </div>
+          </div>
+          {refs.length>0&&<div style={{display:'flex',flexWrap:'wrap',marginTop:8,gap:4}}>{refs.map(function(r){return (
+            <span key={r.id} className={'ref-chip '+(tipoClass[r.tipo]||'pdf')} style={{fontSize:10}}>
+              {r.nombre_archivo}
+            </span>
+          );})}</div>}
+          {showAddRef&&(
+            <div className="add-ref-panel">
+              <div style={{fontSize:12,fontWeight:600,color:'var(--navy)',marginBottom:8}}>Agregar archivo de referencia</div>
+              <div style={{display:'flex',gap:8,alignItems:'center',flexWrap:'wrap'}}>
+                <select value={newRefTipo} onChange={function(e){setNewRefTipo(e.target.value);}} style={{padding:'5px 8px',border:'1.5px solid var(--gray2)',borderRadius:6,fontSize:12}}>
+                  <option value="perfil_puesto">Perfil del puesto</option>
+                  <option value="excel_asignacion">Excel de asignacion</option>
+                  <option value="excel_referencia">Formato Excel</option>
+                  <option value="word_referencia">Word DJ SST</option>
+                  <option value="word_referencia_2">Word DJ Conflicto</option>
+                </select>
+                <input type="file" onChange={function(e){setNewRefFile(e.target.files[0]);}} style={{fontSize:12}}/>
+                {newRefFile&&<button className="btn-sm gold" onClick={subirRef}>Subir</button>}
+                <button className="btn-sm gray" onClick={function(){setShowAddRef(false);setNewRefFile(null);}}>Cancelar</button>
+              </div>
+            </div>
+          )}
+        </div>
+
+        <div className="card">
+          <div className="card-title" style={{justifyContent:'space-between'}}>
+            <div style={{display:'flex',alignItems:'center',gap:8}}><div className="card-dot"/> Expedientes ({exps.length})</div>
+            <div style={{display:'flex',gap:6}}>
+              {leidos<exps.length&&<button className="btn-sm" onClick={leerTodos} disabled={leyExps||analizandoTodo||leyRefs}>{leyExps?<><Ic n="spin" s={12}/> Leyendo...</>:<><Ic n="search" s={12}/> Leer todos</>}</button>}
+              {exps.filter(function(x){return textos[x.id]&&!reportes[x.id];}).length>0&&<button className="btn-sm gold" onClick={analizarTodos} disabled={analizandoTodo||leyExps||leyRefs||!refData}>{analizandoTodo?<><Ic n="spin" s={12}/> Analizando...</>:'Analizar todos'}</button>}
+            </div>
+          </div>
+          {exps.length>0&&<div style={{marginBottom:14}}>
+            <div style={{display:'flex',justifyContent:'space-between',fontSize:11,color:'var(--gray3)',marginBottom:4}}>
+              <span>{Object.keys(reportes).length} analizados - {leidos} leidos - {exps.length} total</span>
+              <span>{pct}%</span>
+            </div>
+            <div className="progress-bar"><div className="progress-fill" style={{width:pct+'%'}}/></div>
+          </div>}
+          {msg&&!leyRefs&&<div className="info-bar"><Ic n="spin" s={15}/><span>{msg}</span></div>}
+          {loading
+            ?<div style={{textAlign:'center',padding:32}}><Ic n="spin" s={20}/></div>
+            :exps.length===0
+              ?<div className="empty">No hay expedientes en este proceso.</div>
+              :exps.map(function(exp){
+                const txt=textos[exp.id];
+                const leido=exp.leido||!!txt;
+                const leyendo=exp.leyendo;
+                const reporte=reportes[exp.id];
+                const aUno=analizando[exp.id];
+                const show=preview===exp.id;
+                return (
+                  <div key={exp.id} style={{marginBottom:12}}>
+                    <div className="exp-row">
+                      <div className="file-badge">PDF</div>
+                      <div className="exp-name">{exp.nombre_archivo}</div>
+                      {txt&&<span style={{fontSize:11,color:'var(--gray3)',flexShrink:0}}>{txt.paginas} pags</span>}
+                      {reporte
+                        ?<span style={{fontSize:11,fontWeight:600,padding:'3px 9px',borderRadius:20,flexShrink:0,background:reporte.resultado_final==='CORRECTO'?'#dcfce7':'#fef3dc',color:reporte.resultado_final==='CORRECTO'?'var(--success)':'#92400e'}}>{reporte.resultado_final==='CORRECTO'?'Correcto':'Con obs.'}</span>
+                        :<span style={{fontSize:11,fontWeight:600,padding:'3px 9px',borderRadius:20,flexShrink:0,background:leido?'#dcfce7':leyendo?'#dbeafe':'#fef3dc',color:leido?'var(--success)':leyendo?'#1e40af':'#9a6c00'}}>{leido?'Leido':leyendo?(exp.progMsg||'Leyendo...'):'Pendiente'}</span>
+                      }
+                      {!leido&&!leyendo&&<button className="btn-sm" onClick={function(){leerUno(exp);}} disabled={leyExps||analizandoTodo||leyRefs}><Ic n="search" s={12}/> Leer</button>}
+                      {leido&&!aUno&&!reporte&&<button className="btn-sm gold" onClick={function(){analizarUno(exp);}} disabled={analizandoTodo||leyExps||leyRefs||!refData}>Analizar</button>}
+                      {aUno&&<button className="btn-sm" disabled><Ic n="spin" s={12}/> Analizando...</button>}
+                      {reporte&&!aUno&&<button className="btn-sm gray" onClick={function(){analizarUno(exp);}} disabled={analizandoTodo||leyExps||leyRefs||!refData} title="Volver a analizar">Reanalizar</button>}
+                      {reporte&&<button className="btn-sm" onClick={function(){setPreview(show?null:exp.id);}}>{show?'Ocultar':'Ver reporte'}</button>}
+                    </div>
+                    {show&&reporte&&<Reporte r={reporte}/>}
+                  </div>
+                );
+              })
+          }
+        </div>
+      </div>
+    </div>
+  );
+};
+
+const ListaProcesos = function({user,onToast,onSelect}){
+  const [procesos,setProcesos]=useState([]);
+  const [loading,setLoading]=useState(true);
+  useEffect(function(){
+    async function load(){
+      const {data}=await sb.from('procesos').select('*, expedientes(count)').eq('user_id',user.id).order('created_at',{ascending:false});
+      setProcesos(Array.isArray(data)?data:[]);setLoading(false);
+    }
+    load();
+  },[]);
+  const fmtD=function(d){return d?new Date(d+'T00:00:00').toLocaleDateString('es-PE',{day:'2-digit',month:'short',year:'numeric'}):'---';};
+  return (
+    <div>
+      <div className="page-header"><div><div className="page-title">Procesos</div><div className="page-subtitle">Haz clic en un proceso para ver sus expedientes</div></div></div>
+      <div className="page-body">
+        {loading
+          ?<div style={{textAlign:'center',padding:60}}><Ic n="spin" s={24}/></div>
+          :procesos.length===0
+            ?<div className="card"><div className="empty">No hay procesos. Crea el primero desde el menu.</div></div>
+            :procesos.map(function(p){return (
+              <div className="proceso-row" key={p.id} onClick={function(){onSelect(p);}}>
+                <div style={{width:42,height:42,background:'var(--navy)',borderRadius:10,display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0}}><Ic n="folder" s={18}/></div>
+                <div className="proceso-info">
+                  <div className="proceso-name">{p.nombre}</div>
+                  <div className="proceso-meta">Presentacion: {fmtD(p.fecha_presentacion)} - Inicio: {fmtD(p.fecha_inicio_laboral)} - {(p.expedientes&&p.expedientes[0])?p.expedientes[0].count:0} expedientes</div>
+                </div>
+                <Ic n="arrow" s={16}/>
+              </div>
+            );})}
+      </div>
+    </div>
+  );
+};
+
+const App = function(){
+  const [user,setUser]=useState(null);
+  const [loading,setLoading]=useState(true);
+  const [page,setPage]=useState('nuevo');
+  const [toast,setToast]=useState(null);
+  const [proceso,setProceso]=useState(null);
+  const [apiKey,setApiKey]=useState(function(){return localStorage.getItem('revisorKey')||'';});
+  useEffect(function(){
+    sb.auth.getSession().then(function({data}){setUser(data.session&&data.session.user?data.session.user:null);setLoading(false);});
+    const {data:{subscription}}=sb.auth.onAuthStateChange(function(_,s){setUser(s&&s.user?s.user:null);});
+    return function(){subscription.unsubscribe();};
+  },[]);
+  const showToast=function(msg,type){setToast({msg,type:type||'success'});setTimeout(function(){setToast(null);},4000);};
+  const logout=async function(){await sb.auth.signOut();setUser(null);};
+  if(loading) return <div style={{display:'flex',alignItems:'center',justifyContent:'center',height:'100vh',background:'var(--navy)'}}><Ic n="spin" s={32}/></div>;
+  if(!apiKey) return <ApiKeyScreen onSave={function(k){setApiKey(k);}}/>;
+  if(!user) return <Login onLogin={setUser}/>;
+  const initials=(user.email||'?').slice(0,2).toUpperCase();
+  return (
+    <div className="app-layout">
+      <aside className="sidebar">
+        <div className="sidebar-header">
+          <div className="sidebar-logo">
+            <div className="sidebar-logo-box"><Ic n="logo" s={18}/></div>
+            <div className="sidebar-brand">Revisor de<br/>Expedientes<span>Sistema automatizado</span></div>
+          </div>
+        </div>
+        <nav className="sidebar-nav">
+          <div className="nav-label">Revision</div>
+          <div className={'nav-item '+(page==='nuevo'?'active':'')} onClick={function(){setPage('nuevo');}}><Ic n="plus" s={15}/> Nuevo Proceso</div>
+          <div className={'nav-item '+(page==='procesos'||page==='detalle'?'active':'')} onClick={function(){setPage('procesos');}}><Ic n="list" s={15}/> Ver Procesos</div>
+        </nav>
+        <div className="sidebar-footer">
+          <div className="user-info">
+            <div className="user-avatar">{initials}</div>
+            <div className="user-email">{user.email}</div>
+            <button className="btn-logout" onClick={logout} title="Cerrar sesion"><Ic n="logout" s={14}/></button>
+          </div>
+          <button onClick={function(){localStorage.removeItem('revisorKey');setApiKey('');}} style={{fontSize:10,color:'rgba(255,255,255,.3)',background:'none',border:'none',cursor:'pointer',width:'100%',textAlign:'left',padding:'6px 10px',marginTop:4}}>
+            Cambiar API Key
+          </button>
+        </div>
+      </aside>
+      <main className="main-content">
+        {page==='nuevo'&&<NuevoProceso user={user} onToast={showToast} onDone={function(){setPage('procesos');}}/>}
+        {page==='procesos'&&<ListaProcesos user={user} onToast={showToast} onSelect={function(p){setProceso(p);setPage('detalle');}}/>}
+        {page==='detalle'&&proceso&&<DetalleProceso proceso={proceso} user={user} onToast={showToast} onBack={function(){setProceso(null);setPage('procesos');}}/>}
+      </main>
+      {toast&&<Toast msg={toast.msg} type={toast.type} onClose={function(){setToast(null);}}/>}
+    </div>
+  );
+};
+
+ReactDOM.createRoot(document.getElementById('root')).render(<App/>);
+</script>
+</body>
+</html>

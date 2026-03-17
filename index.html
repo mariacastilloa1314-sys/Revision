@@ -163,10 +163,12 @@ const { useState, useEffect, useRef } = React;
 // Global error handler - prevents blank screen on unhandled errors
 window.addEventListener('error', function(e) {
   console.error('Global error:', e.error);
+  // Don't let React crash the whole page
+  e.preventDefault();
 });
 window.addEventListener('unhandledrejection', function(e) {
   console.error('Unhandled promise rejection:', e.reason);
-  e.preventDefault(); // Prevent blank screen
+  e.preventDefault();
 });
 const SB_URL = 'https://pemjeszznysuoquzwvpj.supabase.co';
 const SB_KEY = 'sb_publishable_ioce_gG_IzgUF5jBH82a6g_Ho2-3dRs';
@@ -231,14 +233,28 @@ async function readWord(url){
   return res.value||'';
 }
 async function readRef(path){
-  const {data}=await sb.storage.from('expedientes').createSignedUrl(path,180);
-  if(!data||!data.signedUrl) return '[no acceso]';
-  const url=data.signedUrl;
-  const ext=path.split('.').pop().toLowerCase();
-  if(ext==='pdf'){try{const r=await readPDF(url,null);return r.texto;}catch(e){return '[err pdf:'+e.message+']';}}
-  if(ext==='xlsx'||ext==='xls') return await readExcel(url);
-  if(ext==='docx'||ext==='doc') return await readWord(url);
-  return '[formato no soportado]';
+  try{
+    const {data,error}=await sb.storage.from('expedientes').createSignedUrl(path,300);
+    if(error||!data||!data.signedUrl){
+      console.error('readRef signed URL error:',error);
+      return '[no se pudo acceder al archivo]';
+    }
+    const url=data.signedUrl;
+    const ext=path.split('.').pop().toLowerCase().split('?')[0];
+    console.log('readRef: path='+path+' ext='+ext);
+    if(ext==='pdf'){
+      try{const r=await readPDF(url,null);console.log('PDF read: '+r.texto.length+' chars');return r.texto;}
+      catch(e){console.error('PDF error:',e);return '[error leyendo PDF: '+e.message+']';}
+    }
+    if(ext==='xlsx'||ext==='xls') return await readExcel(url);
+    if(ext==='docx'||ext==='doc') return await readWord(url);
+    // If no extension match, try by content
+    console.warn('Extension not recognized: '+ext+' for path: '+path);
+    return '[formato no reconocido: '+ext+']';
+  }catch(e){
+    console.error('readRef error:',e);
+    return '[error: '+e.message+']';
+  }
 }
 async function readAllRefs(refs,onProg){
   const res={};
@@ -309,7 +325,7 @@ async function analyzeDoc(params){
     const p1='Eres revisor experto de expedientes del Estado peruano.'
       +'\n\nORDEN REQUERIDO:\n'+params.orden
       +'\n\nFECHA PRESENTACION: '+params.fechaPres
-      +'\n\nTEXTO EXPEDIENTE (primeras paginas):\n'+params.texto.slice(0,15000)
+      +'\n\nTEXTO EXPEDIENTE:\n'+params.texto.slice(0,60000)
       +'\n\nTAREA: Lista los documentos que encuentras en el expediente en su orden. Compara con el orden requerido. Reporta documentos faltantes, fuera de orden, o adicionales.'
       +'\n\nResponde SOLO en JSON: {"items":[{"tipo":"ok","texto":"..."}]}';
     const r1=await callClaude(p1);
@@ -332,7 +348,7 @@ async function analyzeDoc(params){
       +'\n   - FECHAS inicio y fin: si difieren -> ERROR citando ambas fechas'
       +'\n   - FIRMA: si falta en la constancia -> ERROR'
       +'\n   - Si no hay constancia -> ERROR'
-      +'\n   NOTA: Para MINEDU/INEI el cargo no es igual al objeto del contrato. No compares eso.'
+      +'\n   NOTA IMPORTANTE: MINEDU es igual a MINISTERIO DE EDUCACION y a PROGRAMA EDUCACION BASICA PARA TODOS Unidad Ejecutora 026. NO reportes error por esa diferencia. INEI es igual a INSTITUTO NACIONAL DE ESTADISTICA E INFORMATICA. Solo reporta error si las entidades son claramente DIFERENTES.'
       +'\n3. Verifica que las constancias esten en el mismo orden que la hoja de vida.'
       +'\n4. Calcula el tiempo en cada cargo y compara con lo declarado.'
       +'\n5. Verifica la experiencia acumulada total.'

@@ -789,7 +789,11 @@ const DetalleProceso = function({proceso,user,onToast,onBack}){
   const subirRef=async function(){
     try{
       if(!newRefFile){onToast('Selecciona un archivo primero.','error');return;}
-      const path=proceso.id+'/ref/add_'+newRefTipo+'_'+Date.now()+'_'+newRefFile.name;
+      const safeName = newRefFile.name
+      .normalize('NFD').replace(/[\u0300-\u036f]/g,'')
+      .replace(/[^a-zA-Z0-9._-]/g,'_')
+      .slice(0,80);
+    const path=proceso.id+'/ref/add_'+newRefTipo+'_'+Date.now()+'_'+safeName;
       const {error:eU}=await sb.storage.from('expedientes').upload(path,newRefFile,{upsert:true});
       if(eU){onToast('Error subiendo archivo: '+eU.message,'error');return;}
       await sb.from('archivos_referencia').insert({proceso_id:proceso.id,tipo:newRefTipo,nombre_archivo:newRefFile.name,storage_path:path});

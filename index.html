@@ -789,10 +789,8 @@ const DetalleProceso = function({proceso,user,onToast,onBack}){
   const subirRef=async function(){
     try{
       if(!newRefFile){onToast('Selecciona un archivo primero.','error');return;}
-      const safeName = newRefFile.name
-      .normalize('NFD').replace(/[\u0300-\u036f]/g,'')
-      .replace(/[^a-zA-Z0-9._-]/g,'_')
-      .slice(0,80);
+      const rawName = newRefFile.name;
+    const safeName = rawName.replace(/[^a-zA-Z0-9._-]/g,'_').slice(0,60);
     const path=proceso.id+'/ref/add_'+newRefTipo+'_'+Date.now()+'_'+safeName;
       const {error:eU}=await sb.storage.from('expedientes').upload(path,newRefFile,{upsert:true});
       if(eU){onToast('Error subiendo archivo: '+eU.message,'error');return;}
@@ -834,17 +832,18 @@ const DetalleProceso = function({proceso,user,onToast,onBack}){
   };
 
   const analizarUno=async function(exp){
-    const txt=textos[exp.id];
-    if(!txt){onToast('Primero lee el expediente.','error');return;}
+    if(!textos[exp.id]){onToast('Primero lee el expediente.','error');return;}
     if(!refData){onToast('Espera a que carguen las referencias.','error');return;}
     setAnalizando(function(prev){return {...prev,[exp.id]:true};});
-    let orden='No disponible';
+    setMsg('Iniciando analisis...');
     try{
-      const sheets=await readSheets();
-      orden=sheets.map(function(d){return d.orden+'. '+d.nombre+' ('+(d.obligatorio?'OBLIGATORIO':'OPCIONAL')+') - claves: '+d.claves.join(', ');}).join('\n');
-    }catch(e){console.warn('Sheets:',e);}
-    try{
-      const rc=refData;
+      let orden='No disponible';
+      try{
+        const sheets=await readSheets();
+        orden=sheets.map(function(d){return d.orden+'. '+d.nombre+' ('+(d.obligatorio?'OBLIGATORIO':'OPCIONAL')+')';}).join('\n');
+      }catch(e){console.warn('Sheets no disponible:',e.message);}
+
+      const rc=refData||{};
       const reporte=await analyzeDoc({
         archivo:exp.nombre_archivo,
         fechaPres:proceso.fecha_presentacion,
@@ -854,15 +853,21 @@ const DetalleProceso = function({proceso,user,onToast,onBack}){
         perfil:rc['perfil_puesto']||rc['pdf_perfil']||'No subido',
         fmtWord:(rc['word_referencia']||'')+(rc['word_referencia_2']?'\n'+rc['word_referencia_2']:''),
         fmtExcel:rc['excel_referencia']||'No subido',
-        texto:txt.texto,
+        texto:textos[exp.id].texto,
         onProg:function(m){setMsg(m);},
       });
       setReportes(function(prev){return {...prev,[exp.id]:reporte};});
-      await sb.from('expedientes').update({reporte_json:JSON.stringify(reporte),estado:'analizado'}).eq('id',exp.id);
+      try{
+        await sb.from('expedientes').update({reporte_json:JSON.stringify(reporte),estado:'analizado'}).eq('id',exp.id);
+      }catch(eDb){console.warn('No se pudo guardar en DB:',eDb);}
       onToast('Analisis completado','success');
-    }catch(err){onToast('Error: '+err.message,'error');}
-    setAnalizando(function(prev){return {...prev,[exp.id]:false};});
-    setMsg('');
+    }catch(err){
+      console.error('analizarUno error:',err);
+      onToast('Error en analisis: '+err.message,'error');
+    }finally{
+      setAnalizando(function(prev){return {...prev,[exp.id]:false};});
+      setMsg('');
+    }
   };
 
   const analizarTodos=async function(){
